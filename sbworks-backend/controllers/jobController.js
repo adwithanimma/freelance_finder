@@ -73,3 +73,58 @@ exports.applyJob = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.getMyApplications = async (req, res) => {
+  try {
+    const jobs = await Job.find({ "applications.freelancer": req.user.id })
+      .populate("client", "name email")
+      .populate("applications.freelancer", "name email");
+
+    res.json(jobs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+exports.getMyPostedJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find({ client: req.user.id })
+      .populate("applications.freelancer", "name email");
+
+    res.json(jobs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateApplicationStatus = async (req, res) => {
+  try {
+    const { jobId, freelancerId } = req.params;
+    const { status } = req.body; 
+
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    if (job.client.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const application = job.applications.find(
+      (app) => app.freelancer.toString() === freelancerId
+    );
+
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    application.status = status;
+    await job.save();
+
+    res.json({ message: "Application status updated", job });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
